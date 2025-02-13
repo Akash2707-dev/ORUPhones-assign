@@ -16,6 +16,7 @@ class OtpViewModel extends BaseViewModel {
   bool isLoading = false;
   int timerSeconds = 30;
   bool canResendOtp = false;
+  String? _csrfToken; // 🔥 Store CSRF Token
 
   OtpViewModel({required this.phoneNumber}) {
     startResendTimer();
@@ -65,16 +66,20 @@ class OtpViewModel extends BaseViewModel {
     isLoading = true;
     notifyListeners();
 
-    var userData = await _authService.validateOtp("91", phoneNumber, otp);
+    var response = await _authService.validateOtp("91", phoneNumber, otp);
 
     isLoading = false;
     notifyListeners();
 
-    if (userData != null) {
-      print("✅ OTP Verified Successfully! User Data: $userData");
+    if (response != null) {
+      print("✅ OTP Verified Successfully! User Data: $response");
+
+      // **Store CSRF Token from response**
+      _csrfToken = response["csrfToken"];
+      print("🔹 CSRF Token stored: $_csrfToken");
 
       // **Check if user has a name set**
-      String? userName = userData["user"]?["userName"];
+      String? userName = response["user"]?["userName"];
       if (userName == null || userName.isEmpty) {
         print("🔹 No name found, navigating to NameView...");
         _navigationService.replaceWithNameView();

@@ -10,12 +10,11 @@ class NameViewModel extends BaseViewModel {
   final _navigationService = locator<NavigationService>();
 
   final TextEditingController nameController = TextEditingController();
-
-  /// **Confirm Name and Navigate**
   void navigateToHome() {
     _navigationService.replaceWithHomeView();
   }
 
+  /// **Confirm Name and Navigate**
   Future<void> confirmName() async {
     String name = nameController.text.trim();
 
@@ -24,6 +23,14 @@ class NameViewModel extends BaseViewModel {
       return;
     }
 
+    // **🔹 Ensure user is logged in before proceeding**
+    bool isLoggedIn = await _authService.checkLoginStatus();
+    if (!isLoggedIn) {
+      print("❌ User not logged in, cannot update name");
+      return;
+    }
+
+    // **🔹 Send Name Update with stored CSRF Token & Session**
     bool success = await _authService.updateUserName("91", name);
 
     if (success) {

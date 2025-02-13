@@ -7,10 +7,27 @@ class HomeView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return ViewModelBuilder<HomeViewmodel>.reactive(
-        viewModelBuilder: () => HomeViewmodel(),
-        builder: (context, viewModel, child) {
-          return const Scaffold();
-        });
+    return ViewModelBuilder<HomeViewModel>.reactive(
+      viewModelBuilder: () => HomeViewModel(),
+      builder: (context, viewModel, child) {
+        return Scaffold(
+          appBar: AppBar(
+            title: const Text("Home"),
+            actions: [
+              IconButton(
+                icon: const Icon(Icons.logout),
+                onPressed: viewModel.logout, // 🔥 Calls logout function
+              ),
+            ],
+          ),
+          body: const Center(
+            child: Text(
+              "Welcome to Home!",
+              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+            ),
+          ),
+        );
+      },
+    );
   }
 }

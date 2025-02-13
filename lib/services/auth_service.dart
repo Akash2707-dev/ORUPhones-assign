@@ -3,11 +3,17 @@ import 'package:http/http.dart' as http;
 
 class AuthService {
   final String baseUrl = "http://40.90.224.241:5000";
+  final http.Client _client = http.Client();
+
+  String? _csrfToken; // 🔹 Stores CSRF token
+  String? _sessionCookie; // 🔹 Stores session cookie
+  String? get csrfToken => _csrfToken;
+  String? get sessionCookie => _sessionCookie;
 
   /// **1️⃣ Request OTP (Login)**
   Future<bool> requestOtp(String countryCode, String phoneNumber) async {
     try {
-      final response = await http.post(
+      final response = await _client.post(
         Uri.parse('$baseUrl/login/otpCreate'),
         headers: {"Content-Type": "application/json"},
         body: jsonEncode({
@@ -16,44 +22,51 @@ class AuthService {
         }),
       );
 
-      print("🔹 OTP API Response: ${response.body}"); // Debugging API response
+      print("🔹 OTP API Response: ${response.body}");
 
-      if (response.statusCode == 200) {
-        return true; // OTP request successful
-      } else {
-        throw Exception("❌ Failed to send OTP: ${response.body}");
-      }
+      return response.statusCode == 200;
     } catch (e) {
       print("❌ Error in requestOtp: $e");
       return false;
     }
   }
 
-  /// **2️⃣ Validate OTP**
+  /// **2️⃣ Validate OTP (Extracts CSRF Token & Session Cookie)**
   Future<Map<String, dynamic>?> validateOtp(
       String countryCode, String phoneNumber, String otp) async {
     try {
-      int otpNumber = int.tryParse(otp) ?? 0; // Convert OTP safely
+      int otpNumber = int.tryParse(otp) ?? 0;
+      String formattedOtp =
+          otpNumber.toString().padLeft(4, '0'); // Ensure 4 digits
 
-      // 🔥 Force OTP to always be 4 digits
-      String formattedOtp = otpNumber.toString().padLeft(4, '0');
+      print("🔹 Sending OTP for Validation: $formattedOtp");
 
-      print("🔹 Sending OTP for Validation: $formattedOtp"); // Debugging
-
-      final response = await http.post(
+      final response = await _client.post(
         Uri.parse('$baseUrl/login/otpValidate'),
         headers: {"Content-Type": "application/json"},
         body: jsonEncode({
           "countryCode": int.parse(countryCode),
           "mobileNumber": int.parse(phoneNumber),
-          "otp": int.parse(formattedOtp), // ✅ Ensure correct format
+          "otp": int.parse(formattedOtp),
         }),
       );
 
       print("🔹 OTP Validation Response: ${response.body}");
 
       if (response.statusCode == 200) {
-        return jsonDecode(response.body); // ✅ Returns user data
+        var userData = jsonDecode(response.body);
+
+        // ✅ Extract CSRF Token & Session Cookie
+        await _extractAndStoreAuthData(response);
+
+        // ✅ Check if user is actually logged in
+        bool isLoggedIn = await checkLoginStatus();
+        if (!isLoggedIn) {
+          print("❌ User is not logged in even after OTP verification!");
+          return null;
+        }
+
+        return userData;
       } else {
         throw Exception("❌ OTP validation failed: ${response.body}");
       }
@@ -64,57 +77,129 @@ class AuthService {
   }
 
   /// **3️⃣ Check Login Status (Auto Login)**
-  Future<Map<String, dynamic>?> checkLoginStatus() async {
+  Future<bool> checkLoginStatus() async {
     try {
-      final response = await http.get(Uri.parse('$baseUrl/isLoggedIn'));
+      final response = await _client.get(
+        Uri.parse('$baseUrl/isLoggedIn'),
+        headers: {
+          "Content-Type": "application/json",
+          if (_sessionCookie != null) "Cookie": _sessionCookie!,
+        },
+      );
+
+      print("🔹 isLoggedIn API Response: ${response.body}");
+      print("🔹 isLoggedIn Headers: ${response.headers}");
 
       if (response.statusCode == 200) {
-        return jsonDecode(response.body); // ✅ Returns user data
+        final responseData = jsonDecode(response.body);
+
+        // ✅ Extract CSRF Token
+        if (responseData.containsKey("csrfToken")) {
+          _csrfToken = responseData["csrfToken"];
+          print("✅ CSRF Token Stored: $_csrfToken");
+        } else {
+          print("❌ CSRF Token Missing in Response!");
+          return false;
+        }
+
+        // ✅ Store session cookie if available
+        if (response.headers.containsKey('set-cookie')) {
+          _extractAndStoreAuthData(response);
+        }
+
+        bool isLoggedIn = responseData["isLoggedIn"] ?? false;
+        print("🔹 Final Login Status: $isLoggedIn");
+        return isLoggedIn;
       } else {
-        return null; // User not logged in
+        return false;
       }
     } catch (e) {
       print("❌ Error in checkLoginStatus: $e");
-      return null;
+      return false;
     }
   }
 
-  /// **4️⃣ Update User Name (For New Users)**
+  /// **4️⃣ Update User Name (Attach CSRF & Cookie)**
   Future<bool> updateUserName(String countryCode, String userName) async {
     try {
-      final response = await http.post(
+      if (_sessionCookie == null || _csrfToken == null) {
+        print("❌ No authentication data available, cannot update name.");
+        return false;
+      }
+
+      final response = await _client.post(
         Uri.parse('$baseUrl/update'),
-        headers: {"Content-Type": "application/json"},
+        headers: {
+          "Content-Type": "application/json",
+          "X-Csrf-Token": _csrfToken!,
+          "Cookie": _sessionCookie!,
+        },
         body: jsonEncode({
           "countryCode": int.parse(countryCode),
           "userName": userName,
         }),
       );
 
-      if (response.statusCode == 200) {
-        return true; // ✅ Name update successful
-      } else {
-        throw Exception("❌ Failed to update user name: ${response.body}");
-      }
+      print("🔹 Update User API Response: ${response.body}");
+
+      return response.statusCode == 200;
     } catch (e) {
       print("❌ Error in updateUserName: $e");
       return false;
     }
   }
 
-  /// **5️⃣ Logout**
+  /// **5️⃣ Logout (Attach CSRF & Cookie)**
   Future<bool> logout() async {
     try {
-      final response = await http.get(Uri.parse('$baseUrl/logout'));
+      if (_sessionCookie == null || _csrfToken == null) {
+        print("❌ No authentication data available, cannot logout.");
+        return false;
+      }
+
+      final response = await _client.get(
+        Uri.parse('$baseUrl/logout'),
+        headers: {
+          "X-Csrf-Token": _csrfToken!,
+          "Cookie": _sessionCookie!,
+        },
+      );
+
+      print("🔹 Logout API Response: ${response.body}");
 
       if (response.statusCode == 200) {
-        return true; // ✅ Logout successful
+        print("✅ Logout successful!");
+        _sessionCookie = null;
+        _csrfToken = null; // Clear authentication data
+        return true;
       } else {
-        return false; // ❌ Logout failed
+        print("❌ Logout failed");
+        return false;
       }
     } catch (e) {
       print("❌ Error in logout: $e");
       return false;
+    }
+  }
+
+  /// **6️⃣ Extract & Store CSRF Token & Session Cookie**
+  Future<void> _extractAndStoreAuthData(http.Response response) async {
+    // Extract CSRF token from response body
+    var responseData = jsonDecode(response.body);
+    if (responseData.containsKey("csrfToken")) {
+      _csrfToken = responseData["csrfToken"];
+      print("✅ Extracted CSRF Token: $_csrfToken");
+    } else {
+      print("❌ No CSRF Token Found in Response");
+    }
+
+    // Extract session cookie from headers
+    if (response.headers.containsKey('set-cookie')) {
+      String rawCookie = response.headers['set-cookie']!;
+      _sessionCookie = rawCookie.split(';')[0]; // Extract actual session cookie
+      print("✅ Extracted Session Cookie: $_sessionCookie");
+    } else {
+      print("❌ No Session Cookie Found in Headers");
     }
   }
 }
