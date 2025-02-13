@@ -2,6 +2,7 @@
 import 'package:oruphones_assign/Screens/Login/login_view.dart';
 import 'package:oruphones_assign/Screens/Name/name_view.dart';
 import 'package:oruphones_assign/Screens/OTP/otp_view.dart';
+import 'package:oruphones_assign/services/home_service.dart';
 import 'package:stacked_services/stacked_services.dart';
 import '../Screens/Splash/splash_view.dart';
 import '../Screens/Home/home_view.dart';
@@ -19,7 +20,8 @@ import 'package:oruphones_assign/services/auth_service.dart';
   ],
   dependencies: [
     Singleton(classType: NavigationService),
-    LazySingleton(classType: AuthService)
+    LazySingleton(classType: AuthService),
+    LazySingleton(classType: HomeService)
   ],
 )
 class App {}

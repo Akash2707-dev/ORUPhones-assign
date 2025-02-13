@@ -9,6 +9,41 @@ class AuthService {
   String? _sessionCookie; // 🔹 Stores session cookie
   String? get csrfToken => _csrfToken;
   String? get sessionCookie => _sessionCookie;
+  Future<Map<String, dynamic>?> getUserDetails() async {
+    try {
+      if (_sessionCookie == null || _csrfToken == null) {
+        print("❌ No authentication data available, cannot fetch user details.");
+        return null;
+      }
+
+      final response = await _client.get(
+        Uri.parse('$baseUrl/isLoggedIn'), // ✅ Use isLoggedIn API
+        headers: {
+          "Content-Type": "application/json",
+          "Cookie": _sessionCookie!,
+        },
+      );
+
+      print("🔹 User Details API Response: ${response.body}");
+
+      if (response.statusCode == 200) {
+        final responseData = jsonDecode(response.body);
+
+        if (responseData.containsKey("user")) {
+          return responseData["user"]; // ✅ Returns user details
+        } else {
+          print("❌ No user data found in response!");
+          return null;
+        }
+      } else {
+        print("❌ Failed to fetch user details");
+        return null;
+      }
+    } catch (e) {
+      print("❌ Error fetching user details: $e");
+      return null;
+    }
+  }
 
   /// **1️⃣ Request OTP (Login)**
   Future<bool> requestOtp(String countryCode, String phoneNumber) async {
