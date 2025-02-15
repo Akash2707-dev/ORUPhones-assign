@@ -20,7 +20,11 @@ class HomeView extends StatelessWidget {
   Widget build(BuildContext context) {
     return ViewModelBuilder<HomeViewModel>.reactive(
       viewModelBuilder: () => HomeViewModel(),
-      onViewModelReady: (viewModel) => viewModel.initScrollListener(),
+      onViewModelReady: (viewModel) async {
+        await viewModel
+            .checkLoginStatus(); // Check login status when the view model is ready
+        viewModel.initScrollListener();
+      },
       builder: (context, viewModel, child) {
         return Scaffold(
           backgroundColor: Colors.white,
@@ -62,6 +66,8 @@ class HomeView extends StatelessWidget {
               ],
             ),
             actions: [
+              // Print the value of isUserLoggedIn to check the login status
+
               viewModel.isUserLoggedIn
                   ? IconButton(
                       icon:
@@ -72,7 +78,10 @@ class HomeView extends StatelessWidget {
                     )
                   : GestureDetector(
                       onTap: () {
-                        viewModel.logout();
+                        // If user is not logged in, navigate to the login screen
+                        print("🔴 User is not logged in, navigating to login");
+                        viewModel
+                            .navigateToLogin(); // Ensure this is the correct navigation method
                       },
                       child: Container(
                         height: 29,
@@ -335,63 +344,217 @@ class HomeView extends StatelessWidget {
                           ),
                           const SizedBox(height: 15),
 
-                          /// **🔹 Show Only 2 Product Cards in a Row**
                           Padding(
                             padding: const EdgeInsets.symmetric(horizontal: 10),
-                            child: Row(
-                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                              children: [
-                                /// **Product 1**
-                                Expanded(
-                                  child: ProductCard(
-                                    imageUrl:
-                                        "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQowPW-EI1inBmLR7tKDqFUAPU08StwKkW3Ig&s",
-                                    productName: "iPhone 13 Pro",
-                                    deviceStorage: "128GB",
-                                    deviceCondition: "Like New",
-                                    originalPrice: '81,500',
-                                    discountedPrice: '41,500',
-                                    discountPercentage: 45,
-                                    location: "Mumbai",
-                                    openForNegotiation: false,
-                                    date: "2 days ago",
-                                    isLiked: false,
-                                    onLikePressed: () {
-                                      print("iPhone 13 Pro Liked/Unliked");
-                                    },
-                                  ),
-                                ),
+                            child: ViewModelBuilder<HomeViewModel>.reactive(
+                              viewModelBuilder: () => HomeViewModel(),
+                              onViewModelReady: (viewModel) =>
+                                  viewModel.fetchProducts(),
+                              builder: (context, viewModel, child) {
+                                if (viewModel.isBusy) {
+                                  return const Center(
+                                      child: CircularProgressIndicator());
+                                }
 
-                                const SizedBox(
-                                    width: 10), // ✅ Space between products
+                                if (viewModel.products.isEmpty) {
+                                  return const Center(
+                                      child: Text("No products available."));
+                                }
 
-                                /// **Product 2**
-                                Expanded(
-                                  child: ProductCard(
-                                    imageUrl:
-                                        "https://plus.unsplash.com/premium_photo-1683865776032-07bf70b0add1?fm=jpg&q=60&w=3000&ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxzZWFyY2h8MXx8dXJsfGVufDB8fDB8fHww",
-                                    productName: "Samsung Galaxy S22",
-                                    deviceStorage: "128GB",
-                                    deviceCondition: "Like New",
-                                    originalPrice: '81,500',
-                                    discountedPrice: '41,500',
-                                    discountPercentage: 45,
-                                    location: "Delhi",
-                                    date: "1 week ago",
-                                    openForNegotiation: true,
-                                    isLiked: true,
-                                    onLikePressed: () {
-                                      print("Samsung Galaxy S22 Liked/Unliked");
-                                    },
+                                List<Widget> productWidgets = [];
+                                int adIndex = 0; // Toggle between Ad1 & Ad2
+                                int productCounter =
+                                    0; // Count products before showing an ad
+
+                                for (int i = 0;
+                                    i < viewModel.products.length;
+                                    i++) {
+                                  bool showAdInstead =
+                                      ((productCounter + 1) % 7 == 0);
+                                  final product1 = viewModel.products[i];
+                                  final product2 =
+                                      (i + 1 < viewModel.products.length)
+                                          ? viewModel.products[i + 1]
+                                          : null;
+
+                                  productWidgets.add(
+                                    Padding(
+                                      padding:
+                                          const EdgeInsets.only(bottom: 10),
+                                      child: Row(
+                                        mainAxisAlignment:
+                                            MainAxisAlignment.spaceBetween,
+                                        children: [
+                                          /// **First Product**
+                                          Expanded(
+                                            child: ProductCard(
+                                              imageUrl:
+                                                  product1["imagePath"] ?? "",
+                                              productName:
+                                                  product1["marketingName"] ??
+                                                      "No Name",
+                                              deviceStorage:
+                                                  product1["deviceStorage"] ??
+                                                      "--",
+                                              deviceCondition:
+                                                  product1["deviceCondition"] ??
+                                                      "Unknown",
+                                              originalPrice:
+                                                  product1["originalPrice"]
+                                                          ?.toString() ??
+                                                      "0",
+                                              discountedPrice:
+                                                  product1["discountedPrice"]
+                                                          ?.toString() ??
+                                                      "0",
+                                              discountPercentage:
+                                                  product1["discountPercentage"]
+                                                          ?.round() ??
+                                                      0,
+                                              location:
+                                                  product1["listingLocation"] ??
+                                                      "Unknown",
+                                              date: product1["listingDate"] ??
+                                                  "N/A",
+                                              openForNegotiation: product1[
+                                                      "openForNegotiation"] ??
+                                                  false,
+                                              isLiked:
+                                                  product1["isLiked"] ?? false,
+                                              verified:
+                                                  product1["verified"] ?? false,
+                                              onLikePressed: () {
+                                                viewModel.toggleLike(
+                                                    product1["listingId"],
+                                                    product1["isLiked"] ??
+                                                        false);
+                                              },
+                                            ),
+                                          ),
+
+                                          const SizedBox(
+                                              width:
+                                                  10), // ✅ Space between products
+
+                                          /// **Second Product OR Ad**
+                                          Expanded(
+                                            child: showAdInstead
+                                                ? Container(
+                                                    decoration: BoxDecoration(
+                                                      borderRadius:
+                                                          BorderRadius.circular(
+                                                              8), // ✅ Border Radius for Ads
+                                                    ),
+                                                    child: Image.asset(
+                                                      (adIndex % 2 == 0)
+                                                          ? "lib/assets/images/Ad1.png"
+                                                          : "lib/assets/images/Ad2.png",
+                                                      height:
+                                                          292, // Same as product card
+                                                      width: double.infinity,
+                                                      fit: BoxFit.cover,
+                                                    ),
+                                                  )
+                                                : (product2 != null
+                                                    ? ProductCard(
+                                                        imageUrl: product2[
+                                                                "imagePath"] ??
+                                                            "",
+                                                        productName: product2[
+                                                                "marketingName"] ??
+                                                            "No Name",
+                                                        deviceStorage: product2[
+                                                                "deviceStorage"] ??
+                                                            "--",
+                                                        deviceCondition: product2[
+                                                                "deviceCondition"] ??
+                                                            "Unknown",
+                                                        originalPrice: product2[
+                                                                    "originalPrice"]
+                                                                ?.toString() ??
+                                                            "0",
+                                                        discountedPrice: product2[
+                                                                    "discountedPrice"]
+                                                                ?.toString() ??
+                                                            "0",
+                                                        discountPercentage:
+                                                            product2["discountPercentage"]
+                                                                    ?.round() ??
+                                                                0,
+                                                        location: product2[
+                                                                "listingLocation"] ??
+                                                            "Unknown",
+                                                        date: product2[
+                                                                "listingDate"] ??
+                                                            "N/A",
+                                                        openForNegotiation:
+                                                            product2[
+                                                                    "openForNegotiation"] ??
+                                                                false,
+                                                        isLiked: product2[
+                                                                "isLiked"] ??
+                                                            false,
+                                                        verified: product2[
+                                                                "verified"] ??
+                                                            false,
+                                                        onLikePressed: () {
+                                                          viewModel.toggleLike(
+                                                              product2[
+                                                                  "listingId"],
+                                                              product2[
+                                                                      "isLiked"] ??
+                                                                  false);
+                                                        },
+                                                      )
+                                                    : const SizedBox()), // ✅ Empty to maintain alignment
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                  );
+
+                                  if (showAdInstead)
+                                    adIndex++; // ✅ Alternate Ad1 & Ad2
+
+                                  productCounter++; // ✅ Increment product count
+
+                                  i++; // ✅ Skip next product (already used in the row)
+                                }
+
+                                /// **Pagination Trigger When Reaching "Frequently Asked Questions"**
+                                productWidgets.add(
+                                  Visibility(
+                                    visible: !viewModel.isLoadingMore,
+                                    child: Padding(
+                                      padding: const EdgeInsets.only(top: 20),
+                                      child: Center(
+                                        child: GestureDetector(
+                                          onTap: () {
+                                            print("🔄 Fetching Next Page...");
+                                            viewModel.fetchProducts(
+                                                loadMore: true);
+                                          },
+                                          child: const Text(
+                                            "Load More...",
+                                            style: TextStyle(
+                                                fontSize: 16,
+                                                fontWeight: FontWeight.bold,
+                                                color: Colors.blue),
+                                          ),
+                                        ),
+                                      ),
+                                    ),
                                   ),
-                                ),
-                              ],
+                                );
+
+                                return Column(children: productWidgets);
+                              },
                             ),
                           ),
                         ],
                       ),
                     ),
-                    const SizedBox(height: 1500), // Dummy space for scrolling
+
                     Padding(
                       padding: const EdgeInsets.symmetric(
                           horizontal: 10), // ✅ Add horizontal padding

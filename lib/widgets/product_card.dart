@@ -7,11 +7,12 @@ class ProductCard extends StatelessWidget {
   final String deviceCondition;
   final String originalPrice;
   final String discountedPrice;
-  final int discountPercentage; // ✅ Rounded-off Discount Percentage
+  final int discountPercentage;
   final String location;
   final String date;
   final bool isLiked;
   final bool openForNegotiation;
+  final bool verified; // ✅ Added verified flag
   final VoidCallback onLikePressed;
 
   const ProductCard({
@@ -20,13 +21,14 @@ class ProductCard extends StatelessWidget {
     required this.productName,
     required this.deviceStorage,
     required this.deviceCondition,
-    required this.originalPrice, // ✅ Original Price
-    required this.discountedPrice, // ✅ Discounted Price
-    required this.discountPercentage, // ✅ Rounded Discount
+    required this.originalPrice,
+    required this.discountedPrice,
+    required this.discountPercentage,
     required this.location,
     required this.date,
     required this.isLiked,
     required this.openForNegotiation,
+    required this.verified, // ✅ Receive verified status from API
     required this.onLikePressed,
   }) : super(key: key);
 
@@ -66,37 +68,28 @@ class ProductCard extends StatelessWidget {
                 ),
               ),
 
-              /// **🔹 Row for OruVerified Badge & Heart Checkbox**
+              /// **🔹 Show OruVerified Badge Only If Verified**
+              if (verified) // ✅ Only show if verified
+                Positioned(
+                  top: 8,
+                  child: Image.asset(
+                    "lib/assets/images/oruverified.png",
+                    height: 21,
+                    fit: BoxFit.contain,
+                  ),
+                ),
+
+              /// **🔹 Heart Checkbox (Favorite)**
               Positioned(
                 top: 8,
-                left: 0,
                 right: 8,
-                child: Row(
-                  children: [
-                    /// **OruVerified Badge**
-                    Container(
-                      width: 84,
-                      alignment: Alignment.centerLeft,
-                      child: Image.asset(
-                        "lib/assets/images/oruverified.png",
-                        height: 21,
-                        fit: BoxFit.contain,
-                      ),
-                    ),
-
-                    /// **Spacer to Push Heart Checkbox to the Right**
-                    const Spacer(),
-
-                    /// **Heart Checkbox**
-                    GestureDetector(
-                      onTap: onLikePressed,
-                      child: Icon(
-                        isLiked ? Icons.favorite : Icons.favorite_border,
-                        color: isLiked ? Colors.red : Colors.white,
-                        size: 24,
-                      ),
-                    ),
-                  ],
+                child: GestureDetector(
+                  onTap: onLikePressed,
+                  child: Icon(
+                    isLiked ? Icons.favorite : Icons.favorite_border,
+                    color: isLiked ? Colors.red : Colors.white,
+                    size: 24,
+                  ),
                 ),
               ),
 
@@ -113,10 +106,11 @@ class ProductCard extends StatelessWidget {
                     child: const Text(
                       "PRICE NEGOTIABLE",
                       style: TextStyle(
-                          color: Colors.white,
-                          fontSize: 12,
-                          fontWeight: FontWeight.bold,
-                          fontFamily: 'Poppins'),
+                        color: Colors.white,
+                        fontSize: 12,
+                        fontWeight: FontWeight.bold,
+                        fontFamily: 'Poppins',
+                      ),
                     ),
                   ),
                 ),
@@ -133,18 +127,22 @@ class ProductCard extends StatelessWidget {
                 Text(
                   productName,
                   style: const TextStyle(
-                      fontSize: 14,
-                      fontWeight: FontWeight.bold,
-                      fontFamily: 'Poppins'),
+                    fontSize: 14,
+                    fontWeight: FontWeight.bold,
+                    fontFamily: 'Poppins',
+                  ),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                 ),
 
-                /// **Device Storage & Condition in the same line**
+                /// **Device Storage & Condition**
                 Text(
-                  "$deviceStorage  •  $deviceCondition", // ✅ Thick dot separator
+                  "$deviceStorage  •  $deviceCondition",
                   style: const TextStyle(
-                      fontSize: 12, color: Colors.grey, fontFamily: 'Poppins'),
+                    fontSize: 12,
+                    color: Colors.grey,
+                    fontFamily: 'Poppins',
+                  ),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                 ),
@@ -155,39 +153,48 @@ class ProductCard extends StatelessWidget {
                 Row(
                   children: [
                     /// **Discounted Price**
-                    Text(
-                      "₹$discountedPrice",
-                      style: const TextStyle(
+                    Expanded(
+                      child: Text(
+                        "₹$discountedPrice",
+                        style: const TextStyle(
                           fontSize: 16,
                           fontWeight: FontWeight.w700,
                           color: Colors.black87,
-                          fontFamily: 'Arial'),
-                    ),
-
-                    const SizedBox(width: 6), // ✅ Space between prices
-
-                    /// **Original Price (Strikethrough)**
-                    Text(
-                      "₹$originalPrice",
-                      style: const TextStyle(
-                        fontSize: 10,
-                        fontWeight: FontWeight.w500,
-                        color: Colors.grey,
-                        decoration:
-                            TextDecoration.lineThrough, // ✅ Strikethrough
+                          fontFamily: 'Arial',
+                        ),
+                        overflow: TextOverflow.ellipsis,
+                        maxLines: 1,
                       ),
                     ),
 
-                    const SizedBox(
-                        width: 6), // ✅ Space between original price & discount
+                    const SizedBox(width: 4),
+
+                    /// **Original Price (Strikethrough)**
+                    Flexible(
+                      child: Text(
+                        "₹$originalPrice",
+                        style: const TextStyle(
+                          fontSize: 10,
+                          fontWeight: FontWeight.w500,
+                          color: Colors.grey,
+                          decoration: TextDecoration.lineThrough,
+                        ),
+                      ),
+                    ),
+
+                    const SizedBox(width: 4),
 
                     /// **Discount Percentage**
-                    Text(
-                      "($discountPercentage% off)", // ✅ Example: (25% off)
-                      style: const TextStyle(
-                        fontSize: 10,
-                        fontWeight: FontWeight.w400,
-                        color: Colors.red,
+                    Flexible(
+                      child: Text(
+                        "($discountPercentage% off)",
+                        style: const TextStyle(
+                          fontSize: 10,
+                          fontWeight: FontWeight.w400,
+                          color: Colors.red,
+                        ),
+                        overflow: TextOverflow.ellipsis,
+                        maxLines: 1,
                       ),
                     ),
                   ],
@@ -212,7 +219,12 @@ class ProductCard extends StatelessWidget {
                     const SizedBox(width: 4),
                     Text(
                       location,
-                      style: const TextStyle(fontSize: 10, color: Colors.grey),
+                      style: const TextStyle(
+                        fontSize: 10,
+                        color: Colors.grey,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      maxLines: 1,
                     ),
                   ],
                 ),
@@ -220,7 +232,12 @@ class ProductCard extends StatelessWidget {
                 /// **Date**
                 Text(
                   date,
-                  style: const TextStyle(fontSize: 10, color: Colors.grey),
+                  style: const TextStyle(
+                    fontSize: 10,
+                    color: Colors.grey,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  maxLines: 1,
                 ),
               ],
             ),

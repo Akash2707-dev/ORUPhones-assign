@@ -45,6 +45,10 @@ class AuthService {
     }
   }
 
+  List<String> getUserFavListings(Map<String, dynamic> userDetails) {
+    return List<String>.from(userDetails['favListings'] ?? []);
+  }
+
   /// **1️⃣ Request OTP (Login)**
   Future<bool> requestOtp(String countryCode, String phoneNumber) async {
     try {
@@ -142,7 +146,7 @@ class AuthService {
           _extractAndStoreAuthData(response);
         }
 
-        bool isLoggedIn = responseData["isLoggedIn"] ?? false;
+        bool isLoggedIn = responseData["isLoggedIn"];
         print("🔹 Final Login Status: $isLoggedIn");
         return isLoggedIn;
       } else {
