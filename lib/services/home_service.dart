@@ -10,12 +10,21 @@ class HomeService {
       locator<AuthService>(); // ✅ Inject AuthService
 
   /// **1️⃣ Fetch FAQs**
-  Future<List<dynamic>?> fetchFaqs() async {
+  /// **1️⃣ Fetch FAQs**
+  Future<Map<String, dynamic>?> fetchFaqs() async {
     try {
       final response = await _client.get(Uri.parse('$baseUrl/faq'));
 
       print("🔹 FAQ API Response: ${response.body}");
-      return response.statusCode == 200 ? jsonDecode(response.body) : null;
+
+      // ✅ Ensure response is a valid Map before returning
+      if (response.statusCode == 200) {
+        final Map<String, dynamic> data = jsonDecode(response.body);
+        if (data.containsKey("FAQs") && data["FAQs"] is List) {
+          return data; // ✅ Return the entire response as a Map
+        }
+      }
+      return null; // Return null if response is invalid
     } catch (e) {
       print("❌ Error fetching FAQs: $e");
       return null;
@@ -27,8 +36,22 @@ class HomeService {
     try {
       final response = await _client.get(Uri.parse('$baseUrl/makeWithImages'));
 
-      print("🔹 Brands API Response: ${response.body}");
-      return response.statusCode == 200 ? jsonDecode(response.body) : null;
+      print("🔹 Brands API Response: ${response.body}"); // ✅ Debugging Step
+
+      if (response.statusCode == 200) {
+        final decodedResponse = jsonDecode(response.body);
+
+        // ✅ Check if the response is a Map and contains "dataObject"
+        if (decodedResponse is Map<String, dynamic> &&
+            decodedResponse.containsKey("dataObject")) {
+          return decodedResponse["dataObject"]
+              as List<dynamic>; // ✅ Extract the actual list
+        } else {
+          print("❌ Error: 'dataObject' key not found in API response.");
+          return null;
+        }
+      }
+      return null;
     } catch (e) {
       print("❌ Error fetching brands: $e");
       return null;
@@ -61,17 +84,8 @@ class HomeService {
 
       // ✅ Default Filters (if user does not provide any)
       Map<String, dynamic> defaultFilters = {
-        "condition": ["Like New", "Fair"],
-        "make": ["Samsung"],
-        "storage": ["16 GB", "32 GB"],
-        "ram": ["4 GB"],
-        "warranty": ["Brand Warranty", "Seller Warranty"],
-        "priceRange": [40000, 175000],
-        "verified": true,
-        "sort": {"date": -1}, // Default: Latest
-        "page": 1,
+        "page": 1, // ✅ Keep pagination but no other filters applied
       };
-
       // ✅ Merge Default & User Filters
       Map<String, dynamic> finalFilters = defaultFilters;
       if (userFilters != null) {
